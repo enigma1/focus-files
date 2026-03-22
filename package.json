@@ -1,0 +1,129 @@
+{
+  "name": "focus-files",
+  "displayName": "Recently Focused Files",
+  "description": "Tracks files you focused on",
+  "version": "0.0.5",
+  "publisher": "me",
+  "engines": {
+    "vscode": "^1.112.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/focus-files.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "id": "focusFilesView",
+          "name": "Focused Files"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "focusFiles.markFile",
+        "title": "Mark File as Focused"
+      },
+      {
+        "command": "focusFiles.removeFile",
+        "title": "Remove from Focused Files",
+        "icon": "$(close)"
+      },
+      {
+        "command": "focusFiles.clearFiles",
+        "title": "Clear Focused Files",
+        "icon": "$(trash)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "focusFiles.markFile",
+        "key": "ctrl+alt+f",
+        "when": "editorTextFocus"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "focusFiles.markFile",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "focusFiles.markFile",
+          "group": "navigation",
+          "when": "explorerResourceIsFolder == false"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "focusFiles.removeFile",
+          "when": "view == focusFilesView && viewItem == focusFiles",
+          "group": "inline"
+        },
+        {
+          "command": "focusFiles.removeFile",
+          "when": "view == focusFilesView && viewItem == focusFiles",
+          "group": "2_deletion"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "focusFiles.clearFiles",
+          "when": "view == focusFilesView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "Focus Files",
+      "properties": {
+        "focusFiles.maxItems": {
+          "type": "number",
+          "default": 10,
+          "description": "Maximum number of files to keep in the focused files list"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "compile": "tsc -p .",
+    "package": "vsce package",
+    "vscode:prepublish": "npm run compile"
+  },
+  "keywords": [
+    "files",
+    "focus",
+    "productivity",
+    "explorer",
+    "quick access"
+  ],
+  "author": "Mark Samios",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/vscode": "^1.110.0",
+    "@vscode/vsce": "^3.7.1",
+    "typescript": "^5.9.3"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/enigma1",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/enigma1/focus-files"
+    },
+    "homepage": "https://github.com/enigma1/focus-files#readme",
+    "bugs": {
+      "url": "https://github.com/enigma1/focus-files/issues"
+    }
+  },
+  "icon": "images/icon.png"
+}

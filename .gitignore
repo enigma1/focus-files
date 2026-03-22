@@ -1,0 +1,17 @@
+# Node
+node_modules/
+
+# Build output (TypeScript → JS)
+out/
+
+# VS Code local settings
+.vscode/
+
+# Packaged extension files
+*.vsix
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.bash_history
