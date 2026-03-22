@@ -115,15 +115,15 @@
   },
   "funding": {
     "type": "github",
-    "url": "https://github.com/sponsors/enigma1",
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/enigma1/focus-files.git"
-    },
-    "homepage": "https://github.com/enigma1/focus-files#readme",
-    "bugs": {
-      "url": "https://github.com/enigma1/focus-files/issues"
-    }
+    "url": "https://github.com/sponsors/enigma1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/enigma1/focus-files.git"
+  },
+  "homepage": "https://github.com/enigma1/focus-files#readme",
+  "bugs": {
+    "url": "https://github.com/enigma1/focus-files/issues"
   },
   "icon": "images/icon.png"
 }
