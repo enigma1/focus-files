@@ -4,6 +4,14 @@ An extension to keep track of important files by marking them as **focused** and
 
 ---
 
+## Support This Project
+
+If you find this extension useful, you can support development via PayPal:
+[![PayPal](https://img.shields.io/badge/Donate-PayPal-blue)](https://www.paypal.com/donate?hosted_button_id=CRPY96XAY793A)
+Thank you for helping keep this extension maintained and improving!
+
+---
+
 ## ✨ Features
 
 - 📌 Mark the current file as focused
