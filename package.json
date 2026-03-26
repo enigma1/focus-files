@@ -2,7 +2,7 @@
   "name": "focus-files",
   "displayName": "Recently Focused Files",
   "description": "Tracks files you focused on",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "publisher": "MarkSamios",
   "engines": {
     "vscode": "^1.112.0"

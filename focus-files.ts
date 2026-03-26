@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
+import { saveFocusedFiles, upgrade } from './migrations';
+import { FocusedItem, TreeNode, FocusProviderType } from './focus-types';
 
-const PLACEHOLDER_LOADING = '__loading__';
-const PLACEHOLDER_EMPTY = '__empty__';
+// const PLACEHOLDER_LOADING = '__loading__';
+// const PLACEHOLDER_EMPTY = '__empty__';
 const extId = 'focusFiles';
 const extViewId = 'focusFilesView';
 const extCommands = {
@@ -33,7 +35,7 @@ const createPlaceholder = (notice: string) => {
     notice,
     vscode.TreeItemCollapsibleState.None,
   );
-  placeholder.id = 'placeholder';
+  placeholder.id = `placeholder:${notice}`;
   placeholder.contextValue = undefined;
   placeholder.iconPath = new vscode.ThemeIcon('info');
   placeholder.tooltip = 'No focused files yet';
@@ -45,36 +47,38 @@ const createPlaceholder = (notice: string) => {
   return placeholder;
 };
 
-const getTreeItem = (
-  element: string,
-  config: ReturnType<typeof getConfig>,
-): vscode.TreeItem => {
-  switch (element) {
-    case PLACEHOLDER_LOADING:
-      return createPlaceholder('Loading focused files…');
-    case PLACEHOLDER_EMPTY:
-      return createPlaceholder(
-        // `Use <${config.markFileShortcut}> to add files.`,
-        `Use <focusFiles.markFile> binding to add files.`,
-      );
+const getTreeItem = (element: TreeNode): vscode.TreeItem => {
+  if (element.type === 'placeholder') {
+    return createPlaceholder(element.message);
   }
-
-  const relativePath = vscode.workspace.asRelativePath(element, false);
-  const fileName = relativePath.split('/').pop() || element;
+  const { filePath, line, column } = element.data;
+  const relativePath = vscode.workspace.asRelativePath(filePath, false);
+  const fileName = relativePath.split('/').pop() || filePath;
   const dir = relativePath.slice(0, relativePath.lastIndexOf('/') + 1);
-  const item = new vscode.TreeItem(
-    fileName,
-    vscode.TreeItemCollapsibleState.None,
+  const item = new vscode.TreeItem(fileName);
+  const doc = vscode.workspace.textDocuments.find(
+    (d) => d.uri.fsPath === filePath,
   );
 
+  if (doc) {
+    const lineText = doc.lineAt(line).text.trim();
+    item.description = `${lineText} (${line + 1}:${column + 1})`;
+  } else {
+    item.description = `${dir} (${line + 1}:${column + 1})`;
+  }
   item.contextValue = extId;
-  item.description = dir;
-  item.tooltip = element; // complete path on hover
-  item.resourceUri = vscode.Uri.file(element); // show file icon
+  item.tooltip = `${filePath}:${line + 1}:${column + 1}`;
+  item.resourceUri = vscode.Uri.file(filePath);
+
   item.command = {
     command: 'vscode.open',
     title: 'Open File',
-    arguments: [vscode.Uri.file(element)],
+    arguments: [
+      vscode.Uri.file(filePath),
+      {
+        selection: new vscode.Range(line, column, line, column),
+      },
+    ],
   };
 
   return item;
@@ -88,56 +92,63 @@ const fileExists = async (filePath: string): Promise<boolean> => {
     return false;
   }
 };
+
 const loadFocusedFiles = async (
   context: vscode.ExtensionContext,
-): Promise<string[]> => {
-  const saved = context.workspaceState.get<string[]>('focusedFiles') ?? [];
-  const result: string[] = [];
-  for (const filePath of saved) {
-    if (await fileExists(filePath)) {
-      result.push(filePath);
-    }
-  }
-  return result;
+): Promise<FocusedItem[]> => {
+  const raw = context.workspaceState.get('focusedFiles');
+
+  const migrated = upgrade(raw);
+
+  await saveFocusedFiles({
+    context,
+    items: migrated,
+  });
+
+  return (
+    await Promise.all(
+      migrated.map(async (item) =>
+        (await fileExists(item.filePath)) ? item : null,
+      ),
+    )
+  ).filter(Boolean) as FocusedItem[];
 };
 
-type FocusProviderType = {
-  onDidChangeTreeData: vscode.Event<string | null | undefined>;
-  refresh: () => void;
-  getTreeItem: (element: string) => vscode.TreeItem;
-  getChildren: (element?: string) => string[];
-};
 const createFocusFilesProvider = (
-  focusedFiles: string[],
-  config: ReturnType<typeof getConfig>,
+  focusedFiles: FocusedItem[],
 ): FocusProviderType => {
-  const emitter = new vscode.EventEmitter<string | null | undefined>();
+  const emitter = new vscode.EventEmitter<TreeNode | null | undefined>();
   return {
     onDidChangeTreeData: emitter.event,
     refresh: () => emitter.fire(null),
-    getTreeItem: (element) => getTreeItem(element, config),
-    getChildren: (): string[] => {
-      return focusedFiles.length === 0 ? [PLACEHOLDER_EMPTY] : focusedFiles;
+    getTreeItem: (element) => getTreeItem(element),
+    getChildren: (): TreeNode[] => {
+      if (focusedFiles.length === 0) {
+        return [
+          {
+            type: 'placeholder',
+            message: 'Use <focusFiles.markFile> binding to add files.',
+          },
+        ];
+      }
+
+      return focusedFiles.map((item) => ({
+        type: 'item',
+        data: item,
+      }));
     },
   };
-};
-
-const saveFocusedFiles = (
-  context: vscode.ExtensionContext,
-  files: string[],
-) => {
-  context.workspaceState.update('focusedFiles', files);
 };
 
 export const activate = async (context: vscode.ExtensionContext) => {
   const config = getConfig();
   const focusedFiles = await loadFocusedFiles(context);
-  const provider = createFocusFilesProvider(focusedFiles, config);
+  const provider = createFocusFilesProvider(focusedFiles);
 
   // refresh and persist together
   const updateSession = () => {
     provider.refresh();
-    saveFocusedFiles(context, focusedFiles);
+    saveFocusedFiles({ context, items: focusedFiles });
   };
 
   const onConfigChange = vscode.workspace.onDidChangeConfiguration((e) => {
@@ -166,22 +177,29 @@ export const activate = async (context: vscode.ExtensionContext) => {
       for (const u of targets) {
         const filePath = u.fsPath;
 
-        const index = focusedFiles.indexOf(filePath);
+        let line = 0;
+        let column = 0;
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor && activeEditor.document.uri.fsPath === filePath) {
+          const pos = activeEditor.selection.active;
+          line = pos.line;
+          column = pos.character;
+        }
+
+        const index = focusedFiles.findIndex(
+          (item) => item.filePath === filePath,
+        );
+        const newItem: FocusedItem = {
+          filePath,
+          line,
+          column,
+        };
         if (index !== -1) {
           focusedFiles.splice(index, 1);
         }
 
-        focusedFiles.unshift(filePath);
+        focusedFiles.unshift(newItem);
       }
-
-      // const filePath = editor.document.uri.fsPath;
-      // const index = focusedFiles.indexOf(filePath);
-
-      // if (index !== -1) {
-      //   focusedFiles.splice(index, 1);
-      // }
-
-      // focusedFiles.unshift(filePath);
 
       if (focusedFiles.length > config.maxFocusedFiles) {
         focusedFiles.length = config.maxFocusedFiles;
@@ -195,7 +213,9 @@ export const activate = async (context: vscode.ExtensionContext) => {
     extCommands.removeFile,
     (file: string | vscode.Uri) => {
       const filePath = typeof file === 'string' ? file : file.fsPath;
-      const index = focusedFiles.indexOf(filePath);
+      const index = focusedFiles.findIndex(
+        (item) => item.filePath === filePath,
+      );
       if (index !== -1) {
         focusedFiles.splice(index, 1);
         updateSession();
