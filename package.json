@@ -2,7 +2,7 @@
   "name": "focus-files",
   "displayName": "Recently Focused Files",
   "description": "Tracks files you focused on",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "MarkSamios",
   "engines": {
     "vscode": "^1.112.0"
@@ -109,6 +109,12 @@
           "type": "number",
           "default": 120,
           "description": "Maximum size of the preview label"
+        },
+        "focusFiles.parentPathLevels": {
+          "type": "number",
+          "default": 3,
+          "minimum": 0,
+          "description": "Number of parent directories to show next to the file name."
         }
       }
     }

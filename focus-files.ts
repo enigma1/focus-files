@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { clearConfigCache, getConfig } from './config';
 import { saveFocusedFiles, upgrade } from './migrations';
+import { sortPositions, fileExists } from './utils';
 import {
   FocusedItem,
   TreeNode,
@@ -10,9 +11,8 @@ import {
   FocusProviderType,
   PositionType,
 } from './focus-types';
+import { getDisplayPath } from './utils';
 
-const MAX_PREVIEW = 120;
-const MIN_PREVIEW = 4;
 const extId = 'focusFiles';
 const extViewId = 'focusFilesView';
 const extCommands = {
@@ -28,29 +28,6 @@ const placeholderNode = {
 } satisfies TreeNode;
 
 const fileNodes = new Map<string, TreeNodeFile>();
-
-const getFilePath = (filePath: string) => {
-  const uri = vscode.Uri.file(filePath);
-  const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
-
-  let displayPath: string;
-
-  if (workspaceFolder) {
-    const relative = vscode.workspace.asRelativePath(uri, false);
-    displayPath = `${workspaceFolder.name}/${relative}`;
-  } else {
-    // fallback for files outside workspace
-    displayPath = filePath;
-  }
-  return displayPath;
-};
-
-const sortPositions = (positions: PositionType[]) => {
-  return positions.sort((a, b) => {
-    if (a.line !== b.line) return a.line - b.line;
-    return a.column - b.column;
-  });
-};
 
 const getTreePlaceholderItem = (element: TreeNodePlaceholder) => {
   const placeholder = new vscode.TreeItem(
@@ -122,26 +99,30 @@ const getTreePositionItem = (element: TreeNodePosition) => {
 };
 
 const getTreeFileItem = (element: TreeNodeFile): vscode.TreeItem => {
+  const { parentPathLevels } = getConfig();
   const { filePath, positions } = element.data;
+  const { fileName, parentPath, isExternal } = getDisplayPath(
+    filePath,
+    parentPathLevels,
+  );
 
-  // const relativePath = vscode.workspace.asRelativePath(filePath, false);
-  const relativePath = getFilePath(filePath);
-  const fileName = relativePath.split('/').pop() || filePath;
-
+  const label = `${positions.length ? `[${positions.length}] ` : ''}${fileName}`;
   const item = new vscode.TreeItem(
-    fileName,
+    label,
     positions.length > 0
       ? vscode.TreeItemCollapsibleState.Collapsed
       : vscode.TreeItemCollapsibleState.None,
   );
+  item.description = parentPath;
+
+  if (isExternal) {
+    item.iconPath = new vscode.ThemeIcon('file-symlink-file');
+  }
 
   item.id = filePath;
   item.contextValue = extId;
   item.tooltip = filePath;
   item.resourceUri = vscode.Uri.file(filePath);
-  item.label = {
-    label: `${positions.length ? `[${positions.length}] ` : ''} ${relativePath}`,
-  };
 
   if (positions.length === 0) {
     item.command = {
@@ -169,15 +150,6 @@ const getTreeItem = (element: TreeNode): vscode.TreeItem => {
   }
 
   throw new Error('Unknown TreeNode type');
-};
-
-const fileExists = async (filePath: string): Promise<boolean> => {
-  try {
-    await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
-    return true;
-  } catch {
-    return false;
-  }
 };
 
 const loadFocusedFiles = async (
@@ -308,6 +280,7 @@ export const activate = async (context: vscode.ExtensionContext) => {
   const markFile = vscode.commands.registerCommand(
     extCommands.markFile,
     (uri: vscode.Uri, uris: vscode.Uri[]) => {
+      const { maxPreviewSize } = getConfig();
       const targets = uris && uris.length > 0 ? uris : uri ? [uri] : [];
       const activeEditor = vscode.window.activeTextEditor;
       for (const u of targets) {
@@ -318,12 +291,12 @@ export const activate = async (context: vscode.ExtensionContext) => {
           !addFromExplorer && activeEditor
             ? ({
                 line: activeEditor.selection.active.line,
-                column: activeEditor.selection.active.character,
+                column: activeEditor.selection.start.character,
                 label: !activeEditor.selection.isEmpty
                   ? activeEditor.document
                       .getText(activeEditor.selection)
                       .replace(/\r?\n/g, ' ')
-                      .substring(0, MAX_PREVIEW)
+                      .substring(0, maxPreviewSize)
                   : undefined,
               } satisfies PositionType)
             : null;

@@ -1,17 +1,8 @@
 import * as vscode from 'vscode';
 import { FocusedItem, StoredData } from './focus-types';
+import { hasObjectProps } from './utils';
+
 export const CURRENT_SCHEMA_VERSION = 2;
-
-export const hasObjectProps = <K extends string>(
-  obj: unknown,
-  props: K[],
-): obj is Record<K, unknown> => {
-  if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
-    return false;
-  }
-
-  return props.every((key) => key in obj);
-};
 
 type V2DataSchema = FocusedItem[];
 const isV2Data = (data: any): data is V2DataSchema => {

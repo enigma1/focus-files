@@ -9,6 +9,7 @@ export const getConfig = (): {
   maxFocusedFiles: number;
   minPreviewSize: number;
   maxPreviewSize: number;
+  parentPathLevels: number;
 } => {
   const cached = configCache.get();
   if (cached) return cached;
@@ -32,13 +33,17 @@ export const getConfig = (): {
     vscode.workspace
       .getConfiguration('focusFiles')
       .get<number>('maxPreviewSize') ?? 120;
-
+  const parentPathLevels =
+    vscode.workspace
+      .getConfiguration('focusFiles')
+      .get<number>('parentPathLevels') ?? 3;
   // const placeholderString = `Use <${markFileShortcut}> to add files.`;
   const config = {
     maxFocusedFiles,
     maxPositionsPerFile,
     minPreviewSize,
     maxPreviewSize,
+    parentPathLevels,
   };
   configCache.set(config);
   return config;
