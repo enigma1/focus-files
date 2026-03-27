@@ -2,7 +2,7 @@
   "name": "focus-files",
   "displayName": "Recently Focused Files",
   "description": "Tracks files you focused on",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "publisher": "MarkSamios",
   "engines": {
     "vscode": "^1.112.0"
@@ -26,11 +26,17 @@
     "commands": [
       {
         "command": "focusFiles.markFile",
-        "title": "Mark File as Focused"
+        "title": "Pin in focused files",
+        "icon": "$(star)"
       },
       {
         "command": "focusFiles.removeFile",
         "title": "Remove from Focused Files",
+        "icon": "$(close)"
+      },
+      {
+        "command": "focusFiles.removePosition",
+        "title": "Remove Position",
         "icon": "$(close)"
       },
       {
@@ -57,7 +63,10 @@
         {
           "command": "focusFiles.markFile",
           "group": "navigation",
-          "when": "explorerResourceIsFolder == false"
+          "when": "explorerResourceIsFolder == false",
+          "args": {
+            "fromExplorer": true
+          }
         }
       ],
       "view/item/context": [
@@ -67,9 +76,9 @@
           "group": "inline"
         },
         {
-          "command": "focusFiles.removeFile",
-          "when": "view == focusFilesView && viewItem == focusFiles",
-          "group": "2_deletion"
+          "command": "focusFiles.removePosition",
+          "when": "view == focusFilesView && viewItem == position",
+          "group": "inline"
         }
       ],
       "view/title": [
@@ -88,6 +97,11 @@
           "type": "number",
           "default": 10,
           "description": "Maximum number of files to keep in the focused files list"
+        },
+        "focusFiles.maxPositionsPerFile": {
+          "type": "number",
+          "default": 5,
+          "description": "Maximum number of positions to keep per file"
         }
       }
     }
@@ -95,6 +109,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile": "tsc -p .",
+    "watch": "tsc -w",
     "package": "vsce package",
     "vscode:prepublish": "npm run compile"
   },

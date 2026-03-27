@@ -2,15 +2,49 @@ import * as vscode from 'vscode';
 import { FocusedItem, StoredData } from './focus-types';
 export const CURRENT_SCHEMA_VERSION = 2;
 
+export const hasObjectProps = <K extends string>(
+  obj: unknown,
+  props: K[],
+): obj is Record<K, unknown> => {
+  if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
+    return false;
+  }
+
+  return props.every((key) => key in obj);
+};
+
+type V2DataSchema = FocusedItem[];
+const isV2Data = (data: any): data is V2DataSchema => {
+  if (!Array.isArray(data)) return false;
+
+  return data.every((item) => {
+    const hasProps = hasObjectProps(item, ['filePath', 'positions']);
+    if (!hasProps) return false;
+    const filePath = (item as any).filePath;
+    const positions = (item as any).positions;
+    return (
+      typeof filePath === 'string' &&
+      Array.isArray(positions) &&
+      (positions.length === 0 ||
+        positions.every(
+          (pos: any) =>
+            hasObjectProps(pos, ['line', 'column']) &&
+            typeof pos.line === 'number' &&
+            typeof pos.column === 'number',
+        ))
+    );
+  });
+};
+
 // Upgrade items to the latest schema version
 export const upgrade = (raw: any): FocusedItem[] => {
   if (!raw) return [];
 
   // v2 handling
   if (
-    typeof raw === 'object' &&
+    hasObjectProps(raw, ['version', 'items']) &&
     raw.version === 2 &&
-    Array.isArray(raw.items)
+    isV2Data(raw.items)
   ) {
     return raw.items;
   }
@@ -19,8 +53,7 @@ export const upgrade = (raw: any): FocusedItem[] => {
   if (Array.isArray(raw) && raw.every((item) => typeof item === 'string')) {
     return raw.map((filePath) => ({
       filePath,
-      line: 0,
-      column: 0,
+      positions: [],
     }));
   }
   return [];
