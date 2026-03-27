@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { clearConfigCache, getConfig } from './config';
 import { saveFocusedFiles, upgrade } from './migrations';
 import {
   FocusedItem,
@@ -7,12 +8,11 @@ import {
   TreeNodePlaceholder,
   TreeNodePosition,
   FocusProviderType,
-  PositionEntry,
+  PositionType,
 } from './focus-types';
 
-// const PLACEHOLDER_LOADING = '__loading__';
-// const PLACEHOLDER_EMPTY = '__empty__';
 const MAX_PREVIEW = 120;
+const MIN_PREVIEW = 4;
 const extId = 'focusFiles';
 const extViewId = 'focusFilesView';
 const extCommands = {
@@ -27,28 +27,25 @@ const placeholderNode = {
   message: 'Configure <focusFiles.markFile> in settings to add files.',
 } satisfies TreeNode;
 
-const getConfig = () => {
-  // const markFileShortcut =
-  //   vscode.workspace.getConfiguration(extId).get<string>('markFileShortcut') ??
-  //   'ctrl+alt+f';
+const fileNodes = new Map<string, TreeNodeFile>();
 
-  const maxFocusedFiles =
-    vscode.workspace.getConfiguration(extId).get<number>('maxItems') ?? 10;
-  const maxPositionsPerFile =
-    vscode.workspace
-      .getConfiguration(extId)
-      .get<number>('maxPositionsPerFile') ?? 5;
+const getFilePath = (filePath: string) => {
+  const uri = vscode.Uri.file(filePath);
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
 
-  // const placeholderString = `Use <${markFileShortcut}> to add files.`;
+  let displayPath: string;
 
-  return {
-    // markFileShortcut,
-    maxPositionsPerFile,
-    maxFocusedFiles,
-  };
+  if (workspaceFolder) {
+    const relative = vscode.workspace.asRelativePath(uri, false);
+    displayPath = `${workspaceFolder.name}/${relative}`;
+  } else {
+    // fallback for files outside workspace
+    displayPath = filePath;
+  }
+  return displayPath;
 };
 
-const sortPositions = (positions: PositionEntry[]) => {
+const sortPositions = (positions: PositionType[]) => {
   return positions.sort((a, b) => {
     if (a.line !== b.line) return a.line - b.line;
     return a.column - b.column;
@@ -74,7 +71,7 @@ const getTreePlaceholderItem = (element: TreeNodePlaceholder) => {
 
 const getTreePositionItem = (element: TreeNodePosition) => {
   const { filePath, data: pos } = element;
-
+  const { minPreviewSize } = getConfig();
   const doc = vscode.workspace.textDocuments.find(
     (d) => d.uri.fsPath === filePath,
   );
@@ -97,9 +94,11 @@ const getTreePositionItem = (element: TreeNodePosition) => {
 
   // Set some icons
   if (doc) {
-    const lineText = doc.lineAt(pos.line)?.text || '';
-    if (!pos.label || (pos.label && !lineText.includes(pos.label))) {
+    const lineText = doc.lineAt(safeLine)?.text.trim() || '';
+    if (!pos.label || !lineText.includes(pos.label)) {
       item.iconPath = new vscode.ThemeIcon('warning');
+    } else if (lineText.length < minPreviewSize) {
+      item.iconPath = new vscode.ThemeIcon('eye');
     } else {
       item.iconPath = new vscode.ThemeIcon('code');
     }
@@ -125,7 +124,8 @@ const getTreePositionItem = (element: TreeNodePosition) => {
 const getTreeFileItem = (element: TreeNodeFile): vscode.TreeItem => {
   const { filePath, positions } = element.data;
 
-  const relativePath = vscode.workspace.asRelativePath(filePath, false);
+  // const relativePath = vscode.workspace.asRelativePath(filePath, false);
+  const relativePath = getFilePath(filePath);
   const fileName = relativePath.split('/').pop() || filePath;
 
   const item = new vscode.TreeItem(
@@ -135,14 +135,13 @@ const getTreeFileItem = (element: TreeNodeFile): vscode.TreeItem => {
       : vscode.TreeItemCollapsibleState.None,
   );
 
+  item.id = filePath;
   item.contextValue = extId;
   item.tooltip = filePath;
   item.resourceUri = vscode.Uri.file(filePath);
-
-  item.description =
-    positions.length > 0
-      ? `pins${positions.length > 1 ? 's' : ''}(${positions.length})`
-      : '';
+  item.label = {
+    label: `${positions.length ? `[${positions.length}] ` : ''} ${relativePath}`,
+  };
 
   if (positions.length === 0) {
     item.command = {
@@ -201,39 +200,58 @@ const loadFocusedFiles = async (
   ).filter(Boolean) as FocusedItem[];
 };
 
+type GetChildrenProps = {
+  focusedFiles: FocusedItem[];
+  element?: TreeNode;
+};
+
+const getChildren = ({
+  focusedFiles,
+  element,
+}: GetChildrenProps): TreeNode[] => {
+  if (!element) {
+    // top-level files or placeholder
+    if (focusedFiles.length === 0) {
+      return [placeholderNode];
+    }
+
+    return focusedFiles.map((item) => {
+      let node = fileNodes.get(item.filePath);
+
+      if (!node) {
+        node = { type: 'file', data: item };
+        fileNodes.set(item.filePath, node);
+      } else {
+        node.data = item; // keep updated reference
+      }
+      return node;
+    });
+  }
+  if (element.type === 'file') {
+    // expand positions under this file
+    const { data } = element;
+    return data.positions.map((pos) => ({
+      type: 'position',
+      filePath: data.filePath,
+      data: pos,
+    }));
+  }
+  return [];
+};
+
 const createFocusFilesProvider = (
   focusedFiles: FocusedItem[],
 ): FocusProviderType => {
   const emitter = new vscode.EventEmitter<TreeNode | null | undefined>();
-  const getChildren = (element?: TreeNode): TreeNode[] => {
-    if (!element) {
-      // top-level files or placeholder
-      if (focusedFiles.length === 0) {
-        return [placeholderNode];
-      }
-
-      return focusedFiles.map((item) => ({ type: 'file', data: item }));
-    }
-    if (element.type === 'file') {
-      // expand positions under this file
-      const { data } = element;
-      return data.positions.map((pos) => ({
-        type: 'position',
-        filePath: data.filePath,
-        data: pos,
-      }));
-    }
-    return [];
-  };
   return {
     onDidChangeTreeData: emitter.event,
-    refresh: () => emitter.fire(null),
+    refresh: (node?: TreeNode) => emitter.fire(node),
     getTreeItem: (element) => getTreeItem(element),
-    getChildren,
+    getChildren: (element) => getChildren({ focusedFiles, element }),
   };
 };
 
-const addPosition = (positions: PositionEntry[], location: PositionEntry) => {
+const addPosition = (positions: PositionType[], location: PositionType) => {
   const existing = positions.find((p) => p.line === location.line);
   if (existing) {
     // Update label if a new one is provided
@@ -249,18 +267,35 @@ export const activate = async (context: vscode.ExtensionContext) => {
   const provider = createFocusFilesProvider(focusedFiles);
 
   // refresh and persist together
-  const updateSession = () => {
-    provider.refresh();
+  const updateSession = (options?: { node?: TreeNode }) => {
+    if (options?.node) {
+      provider.refresh(options.node);
+    } else {
+      provider.refresh();
+    }
+
     saveFocusedFiles({ context, items: focusedFiles });
   };
 
   const onConfigChange = vscode.workspace.onDidChangeConfiguration((e) => {
     if (e.affectsConfiguration(extId)) {
+      clearConfigCache();
       Object.assign(config, getConfig());
+      focusedFiles.length = Math.min(
+        focusedFiles.length,
+        config.maxFocusedFiles,
+      );
 
-      if (focusedFiles.length > config.maxFocusedFiles) {
-        focusedFiles.length = config.maxFocusedFiles;
-      }
+      focusedFiles.forEach((file) => {
+        if (file.positions.length > config.maxPositionsPerFile) {
+          file.positions.length = config.maxPositionsPerFile;
+        }
+        file.positions.forEach((pos) => {
+          if (pos.label && pos.label.length > config.maxPreviewSize) {
+            pos.label = pos.label.substring(0, config.maxPreviewSize);
+          }
+        });
+      });
       updateSession();
     }
   });
@@ -290,7 +325,7 @@ export const activate = async (context: vscode.ExtensionContext) => {
                       .replace(/\r?\n/g, ' ')
                       .substring(0, MAX_PREVIEW)
                   : undefined,
-              } satisfies PositionEntry)
+              } satisfies PositionType)
             : null;
 
         const index = focusedFiles.findIndex(
@@ -332,12 +367,10 @@ export const activate = async (context: vscode.ExtensionContext) => {
       if (fileIndex === -1) return;
 
       const file = focusedFiles[fileIndex];
+      const fileNode = fileNodes.get(filePath);
 
-      file.positions = file.positions.filter(
-        (p) => !(p.line === data.line && p.column === data.column),
-      );
-
-      updateSession();
+      file.positions = file.positions.filter((p) => !(p.line === data.line));
+      updateSession(fileNode ? { node: fileNode } : undefined);
     },
   );
 

@@ -63,10 +63,7 @@
         {
           "command": "focusFiles.markFile",
           "group": "navigation",
-          "when": "explorerResourceIsFolder == false",
-          "args": {
-            "fromExplorer": true
-          }
+          "when": "explorerResourceIsFolder == false"
         }
       ],
       "view/item/context": [
@@ -102,6 +99,16 @@
           "type": "number",
           "default": 5,
           "description": "Maximum number of positions to keep per file"
+        },
+        "focusFiles.minPreviewSize": {
+          "type": "number",
+          "default": 5,
+          "description": "Minimum size of the preview label"
+        },
+        "focusFiles.maxPreviewSize": {
+          "type": "number",
+          "default": 120,
+          "description": "Maximum size of the preview label"
         }
       }
     }

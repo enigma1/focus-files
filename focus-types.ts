@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-export type PositionEntry = {
+export type PositionType = {
   line: number;
   column: number;
   label?: string;
@@ -8,7 +8,7 @@ export type PositionEntry = {
 
 export type FocusedItem = {
   filePath: string;
-  positions: PositionEntry[];
+  positions: PositionType[];
 };
 
 export type StoredData = {
@@ -27,14 +27,14 @@ export type TreeNodeFile = {
 export type TreeNodePosition = {
   type: 'position';
   filePath: string;
-  data: PositionEntry;
+  data: PositionType;
 };
 
 export type TreeNode = TreeNodeFile | TreeNodePosition | TreeNodePlaceholder;
 
 export type FocusProviderType = {
   onDidChangeTreeData: vscode.Event<TreeNode | null | undefined>;
-  refresh: () => void;
+  refresh: (node?: TreeNode) => void;
   getTreeItem: (element: TreeNode) => vscode.TreeItem;
   getChildren: (element?: TreeNode) => TreeNode[];
 };

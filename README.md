@@ -1,6 +1,7 @@
-# Focus Files
+## Focus Files
 
-An extension to keep track of important files by marking them as **focused** and accessing them quickly from a dedicated view. In many situations it can be used instead of the default **open editors** in VSCode to access marked files instad of opened files. Sekect one or multiple files in the **Explorer** then right-click and hit `Add to Focused Files`.
+
+The **Focus Files** extension helps you quickly access your most important files and locations, letting you stay organized and productive. Instead of relying on VSCode’s default **Open Editors**, you can mark files or specific locations as **focused** and navigate them easily through a dedicated view.
 
 ---
 
@@ -11,18 +12,31 @@ If you find this extension useful, you can support development via PayPal:
 Thank you for helping keep this extension maintained and improving!
 
 ---
+## ✨ What's new
+
+This version incorporates:
+
+- Pinned positions with labels
+- Preview text size configuration
+- `Remove Position` command
+- Placeholder instructions updated to match current behavior
+
+---
 
 ## ✨ Features
 
-- 📌 Mark the current file as focused
-- 📁 Add files directly from the Explorer (right-click)
-- 🔁 Re-marking a file moves it to the top (priority)
-- ❌ Remove individual files
-- 🧹 Clear all focused files (with confirmation)
-- 💾 Persistent state (restored after reload)
-- 🧠 Automatically skips deleted files on reload
-- 🔢 Configurable maximum number of focused files
-- 🖱️ Supports multi-select in Explorer
+- 📌 **Mark the current file as focused** – Pin the file you are working on for easy access.
+- 📁 **Add files directly from the Explorer** – Select one or multiple files, right-click, and choose **Pin to Focused Files**.
+- 🔖 **Pin specific text locations** – Highlight text and pin it; the location will appear under the main file with a label, line, and column.
+- 🔁 **Re-marking a file moves it to the top** – Priority is given to recently pinned files.
+- ❌ **Remove individual files or positions** – Delete pins without affecting other focused files.
+- 🧹 **Clear all focused files** – Remove everything at once (with confirmation).
+- 💾 **Persistent state** – Your focused files and positions are saved and restored after reload.
+- 🧠 **Automatically skips deleted files** – Focused files that no longer exist are ignored on reload.
+- 🔢 **Configurable maximums** – Set limits for the number of focused files and positions per file.
+- 🖱️ **Supports multi-select in Explorer** – Pin multiple files at once for efficiency.
+
+Stay focused, reduce clutter, and navigate your key files faster than ever.
 
 ---
 
@@ -30,12 +44,12 @@ Thank you for helping keep this extension maintained and improving!
 
 - Located in the Explorer sidebar
 - Displays a list of your focused files
-- Shows file name + relative path
-- Click a file to open it
+- Shows file name + relative path, and any pinned positions with labels
+- Click a file to open it or a position to jump to the exact location
 
 When empty, a placeholder message is shown:
 
-Use <your shortcut> to add files.
+Use the default `ctrl+alt+f` to add files or set your own shortcut
 
 ---
 
@@ -43,8 +57,9 @@ Use <your shortcut> to add files.
 
 | Command | Description |
 |--------|-------------|
-| `Focus Files: Mark File` | Add current or selected file(s) to focused list |
+| `Focus Files: Mark File` | Add current file or selection(s) to the focused list |
 | `Focus Files: Remove File` | Remove a file from the list |
+| `Focus Files: Remove Position` | Remove a pinned position within a file |
 | `Focus Files: Clear Files` | Remove all focused files |
 
 ---
@@ -53,14 +68,16 @@ Use <your shortcut> to add files.
 
 ### From Editor
 - Open a file
+- Select text (optional) to pin a specific location
 - Run command: **"Mark File"**
 - (Optional) Use your keybinding
 
 ### From Explorer
 - Right-click a file (or multiple files)
-- Click **"Add to Focused Files"**
+- Click **"Pin to Focused Files"**
 
 ---
+
 
 ## ⚙️ Configuration
 
@@ -68,13 +85,19 @@ Available in VS Code Settings:
 
 ```json
 {
-  "focusFiles.maxItems": 10
+  "focusFiles.maxItems": 10,
+  "focusFiles.maxPositionsPerFile": 5,
+  "focusFiles.minPreviewSize": 10,
+  "focusFiles.maxPreviewSize": 50
 }
 ```
 
 | Setting               | Description                     |
 | --------------------- | ------------------------------- |
 | `focusFiles.maxItems` | Maximum number of focused files |
+| `focusFiles.maxPositionsPerFile` | Maximum number of pinned positions per file|
+| `focusFiles.minPreviewSize` | 	Minimum preview text length for position labels |
+| `focusFiles.maxPreviewSize` | Maximum preview text length for position labels |
 
 **⌨️ Keybindings**
 
