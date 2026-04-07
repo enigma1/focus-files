@@ -81,7 +81,7 @@ const getTreePositionItem = (element: TreeNodePosition) => {
     }
   } else {
     // file missing
-    item.iconPath = new vscode.ThemeIcon('error');
+    item.iconPath = new vscode.ThemeIcon('eye-closed');
   }
 
   item.command = {
@@ -277,19 +277,66 @@ export const activate = async (context: vscode.ExtensionContext) => {
     treeDataProvider: provider,
   });
 
+  type MarkFileInput = {
+    filePath: string;
+    source: 'explorer' | 'editor' | 'tree';
+  };
+
+  const resolveMarkFileInput = (
+    arg: unknown,
+    uris?: vscode.Uri[],
+  ): MarkFileInput[] => {
+    // multi-select (explorer)
+    if (uris?.length) {
+      return uris.map((u) => ({
+        filePath: u.fsPath,
+        source: 'explorer',
+      }));
+    }
+
+    // single URI
+    if (arg instanceof vscode.Uri) {
+      return [
+        {
+          filePath: arg.fsPath,
+          source: 'editor', // or 'explorer' depending on your intent
+        },
+      ];
+    }
+
+    // tree node
+    if (
+      typeof arg === 'object' &&
+      arg !== null &&
+      (arg as any).type === 'file'
+    ) {
+      return [
+        {
+          filePath: (arg as any).data.filePath,
+          source: 'tree',
+        },
+      ];
+    }
+
+    return [];
+  };
+
   const markFile = vscode.commands.registerCommand(
     extCommands.markFile,
-    (uri: vscode.Uri, uris: vscode.Uri[]) => {
+    (arg: vscode.Uri | TreeNodeFile, uris: vscode.Uri[]) => {
+      const inputs = resolveMarkFileInput(arg, uris);
+
+      if (!inputs.length) {
+        console.warn('[focusFiles] Invalid markFile call', arg);
+        return;
+      }
       const { maxPreviewSize } = getConfig();
-      const targets = uris && uris.length > 0 ? uris : uri ? [uri] : [];
       const activeEditor = vscode.window.activeTextEditor;
-      for (const u of targets) {
-        const filePath = u.fsPath;
-        // Check if uris is an array, it means file will be added from the explorer
-        const addFromExplorer = !!uris?.length;
+      for (const input of inputs) {
+        const { filePath, source } = input;
         const location =
-          !addFromExplorer && activeEditor
-            ? ({
+          source === 'editor' && activeEditor
+            ? {
                 line: activeEditor.selection.active.line,
                 column: activeEditor.selection.start.character,
                 label: !activeEditor.selection.isEmpty
@@ -298,7 +345,7 @@ export const activate = async (context: vscode.ExtensionContext) => {
                       .replace(/\r?\n/g, ' ')
                       .substring(0, maxPreviewSize)
                   : undefined,
-              } satisfies PositionType)
+              }
             : null;
 
         const index = focusedFiles.findIndex(

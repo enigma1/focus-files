@@ -62,8 +62,8 @@
       "explorer/context": [
         {
           "command": "focusFiles.markFile",
-          "group": "navigation",
-          "when": "explorerResourceIsFolder == false"
+          "when": "explorerResourceIsFolder == false",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -76,6 +76,21 @@
           "command": "focusFiles.removePosition",
           "when": "view == focusFilesView && viewItem == position",
           "group": "inline"
+        },
+        {
+          "command": "focusFiles.markFile",
+          "when": "view == focusFilesView && viewItem == focusFiles",
+          "group": "2_mark"
+        },
+        {
+          "command": "focusFiles.removeFile",
+          "when": "view == focusFilesView && viewItem == focusFiles",
+          "group": "3_remove_file"
+        },
+        {
+          "command": "focusFiles.removePosition",
+          "when": "view == focusFilesView && viewItem == position",
+          "group": "3_remove_position"
         }
       ],
       "view/title": [

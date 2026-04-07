@@ -20,7 +20,7 @@ export const getConfig = (): {
 
   const maxFocusedFiles =
     vscode.workspace.getConfiguration('focusFiles').get<number>('maxItems') ??
-    10;
+    30;
   const maxPositionsPerFile =
     vscode.workspace
       .getConfiguration('focusFiles')
