@@ -25,7 +25,7 @@ This version incorporates:
 
 ## ✨ Features
 
-- 📌 **Mark the current file as focused** – Pin the file you are working on for easy access.
+- 📌 **Mark the current file as focused** – Pin the file you are working on for easy access, re-pin the same file will move it at the top.
 - 📁 **Add files directly from the Explorer** – Select one or multiple files, right-click, and choose **Pin to Focused Files**.
 - 🔖 **Pin specific text locations** – Highlight text and pin it; the location will appear under the main file with a label, line, and column.
 - 🔁 **Re-marking a file moves it to the top** – Priority is given to recently pinned files.
@@ -85,7 +85,7 @@ Available in VS Code Settings:
 
 ```json
 {
-  "focusFiles.maxItems": 10,
+  "focusFiles.maxItems": 30,
   "focusFiles.maxPositionsPerFile": 5,
   "focusFiles.minPreviewSize": 10,
   "focusFiles.maxPreviewSize": 50
