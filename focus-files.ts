@@ -68,20 +68,20 @@ const getTreePositionItem = (element: TreeNodePosition) => {
 
   const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
   item.contextValue = 'position';
+  // use a default code icon
+  item.iconPath = new vscode.ThemeIcon('code');
 
-  // Set some icons
+  // Override icons where applicable
   if (doc) {
     const lineText = doc.lineAt(safeLine)?.text.trim() || '';
     if (!pos.label || !lineText.includes(pos.label)) {
       item.iconPath = new vscode.ThemeIcon('warning');
     } else if (lineText.length < minPreviewSize) {
       item.iconPath = new vscode.ThemeIcon('eye');
-    } else {
-      item.iconPath = new vscode.ThemeIcon('code');
     }
-  } else {
-    // file missing
-    item.iconPath = new vscode.ThemeIcon('eye-closed');
+  } else if (!fileExists(filePath)) {
+    item.iconPath = new vscode.ThemeIcon('error');
+    // item.iconPath = new vscode.ThemeIcon('eye-closed');
   }
 
   item.command = {
@@ -441,6 +441,7 @@ export const activate = async (context: vscode.ExtensionContext) => {
       );
       if (index !== -1) {
         focusedFiles.splice(index, 1);
+        fileNodes.delete(filePath);
         updateSession();
       }
     },
@@ -457,6 +458,7 @@ export const activate = async (context: vscode.ExtensionContext) => {
 
       if (confirm === 'Yes') {
         focusedFiles.length = 0;
+        fileNodes.clear();
         updateSession();
       }
     },
