@@ -345,34 +345,55 @@ export const activate = async (context: vscode.ExtensionContext) => {
       const { maxPreviewSize } = getConfig();
       const activeEditor = vscode.window.activeTextEditor;
 
-      console.log('Marking files:', arg, uris, inputs, activeEditor?.selection);
+      // Check for editor source with empty selection to prevent noise from just clicking files/tabs without actually selecting text
+      if (
+        activeEditor &&
+        inputs.some((i) => i.source === 'editor') &&
+        activeEditor.selection.isEmpty
+      ) {
+        return;
+      }
 
       for (const input of inputs) {
         const { filePath, source } = input;
-        const location =
-          source === 'editor' && activeEditor
-            ? {
-                line: activeEditor.selection.active.line,
-                column: activeEditor.selection.start.character,
-                label: !activeEditor.selection.isEmpty
-                  ? activeEditor.document
-                      .getText(activeEditor.selection)
-                      .replace(/\r?\n/g, ' ')
-                      .substring(0, maxPreviewSize)
-                  : undefined,
-              }
-            : null;
+        let location: PositionType | null = null;
+
+        if (source === 'editor' && activeEditor) {
+          const selection = activeEditor.selection;
+
+          if (!selection || selection.isEmpty) {
+            location = null;
+          } else {
+            location = {
+              line: selection.active.line,
+              column: selection.active.character,
+              label: activeEditor.document
+                .getText(selection)
+                .replace(/\r?\n/g, ' ')
+                .substring(0, maxPreviewSize),
+            };
+          }
+        }
 
         const index = focusedFiles.findIndex(
           (item) => item.filePath === filePath,
         );
+
         const newItem: FocusedItem = { filePath, positions: [] };
+        // Do not change entries if coming from tree or editor to prevent losing positions
+        const preservePositions =
+          source === 'tree' ||
+          (source === 'editor' &&
+            activeEditor &&
+            !activeEditor.selection.isEmpty);
 
         if (index !== -1) {
           const orgFile = focusedFiles.splice(index, 1)[0];
-          newItem.positions = orgFile.positions.slice();
-        } else {
-          newItem.positions = [];
+
+          // ONLY preserve if coming from editor selection
+          newItem.positions = preservePositions
+            ? orgFile.positions.slice()
+            : [];
         }
 
         if (location) {
