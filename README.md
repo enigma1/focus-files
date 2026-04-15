@@ -4,6 +4,11 @@
 The **Focus Files** extension helps you quickly access your most important files and locations, letting you stay organized and productive. Instead of relying on VSCode’s default **Open Editors**, you can mark files or specific locations as **focused** and navigate them easily through a dedicated view.
 
 ---
+## Demo
+
+![Focus Files Demo](media/focus-files-demo.gif)
+
+---
 
 ## Support This Project
 
