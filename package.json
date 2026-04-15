@@ -53,6 +53,12 @@
       }
     ],
     "menus": {
+      "editor/title/context": [
+        {
+          "command": "focusFiles.markFile",
+          "group": "navigation"
+        }
+      ],
       "editor/context": [
         {
           "command": "focusFiles.markFile",

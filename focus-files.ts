@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { clearConfigCache, getConfig } from './config';
 import { saveFocusedFiles, upgrade } from './migrations';
-import { sortPositions, fileExists } from './utils';
+import { sortPositions, fileExists, hasObjectProps } from './utils';
 import {
   FocusedItem,
   TreeNode,
@@ -279,7 +279,7 @@ export const activate = async (context: vscode.ExtensionContext) => {
 
   type MarkFileInput = {
     filePath: string;
-    source: 'explorer' | 'editor' | 'tree';
+    source: 'explorer' | 'editor' | 'tree' | 'tab';
   };
 
   const resolveMarkFileInput = (
@@ -287,11 +287,23 @@ export const activate = async (context: vscode.ExtensionContext) => {
     uris?: vscode.Uri[],
   ): MarkFileInput[] => {
     // multi-select (explorer)
-    if (uris?.length) {
+    if (Array.isArray(uris) && uris.length > 0) {
       return uris.map((u) => ({
         filePath: u.fsPath,
         source: 'explorer',
       }));
+    }
+
+    if (
+      arg instanceof vscode.Uri &&
+      hasObjectProps(uris, ['groupId', 'editorIndex'])
+    ) {
+      return [
+        {
+          filePath: arg.fsPath,
+          source: 'tab',
+        },
+      ];
     }
 
     // single URI
@@ -299,7 +311,7 @@ export const activate = async (context: vscode.ExtensionContext) => {
       return [
         {
           filePath: arg.fsPath,
-          source: 'editor', // or 'explorer' depending on your intent
+          source: 'editor',
         },
       ];
     }
@@ -332,6 +344,9 @@ export const activate = async (context: vscode.ExtensionContext) => {
       }
       const { maxPreviewSize } = getConfig();
       const activeEditor = vscode.window.activeTextEditor;
+
+      console.log('Marking files:', arg, uris, inputs, activeEditor?.selection);
+
       for (const input of inputs) {
         const { filePath, source } = input;
         const location =
