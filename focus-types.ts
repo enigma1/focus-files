@@ -37,4 +37,5 @@ export type FocusProviderType = {
   refresh: (node?: TreeNode) => void;
   getTreeItem: (element: TreeNode) => vscode.TreeItem;
   getChildren: (element?: TreeNode) => TreeNode[];
+  getParent: (element: TreeNode) => TreeNode | undefined;
 };

@@ -13,6 +13,7 @@ import {
 } from './focus-types';
 import { getDisplayPath } from './utils';
 
+let selectionResetCounter = 0;
 const extId = 'focusFiles';
 const extViewId = 'focusFilesView';
 const extCommands = {
@@ -119,7 +120,7 @@ const getTreeFileItem = (element: TreeNodeFile): vscode.TreeItem => {
     item.iconPath = new vscode.ThemeIcon('file-symlink-file');
   }
 
-  item.id = filePath;
+  item.id = `${filePath}:${selectionResetCounter}`;
   item.contextValue = extId;
   item.tooltip = filePath;
   item.resourceUri = vscode.Uri.file(filePath);
@@ -211,6 +212,14 @@ const getChildren = ({
   return [];
 };
 
+const getParent = (element: TreeNode): TreeNode | undefined => {
+  if (element.type === 'position') {
+    return fileNodes.get(element.filePath);
+  }
+
+  return undefined;
+};
+
 const createFocusFilesProvider = (
   focusedFiles: FocusedItem[],
 ): FocusProviderType => {
@@ -220,6 +229,7 @@ const createFocusFilesProvider = (
     refresh: (node?: TreeNode) => emitter.fire(node),
     getTreeItem: (element) => getTreeItem(element),
     getChildren: (element) => getChildren({ focusedFiles, element }),
+    getParent: (element) => getParent(element),
   };
 };
 
@@ -273,9 +283,39 @@ export const activate = async (context: vscode.ExtensionContext) => {
   });
 
   // vscode.window.registerTreeDataProvider(extViewId, provider);
-  const _treeView = vscode.window.createTreeView(extViewId, {
+  const treeView = vscode.window.createTreeView(extViewId, {
     treeDataProvider: provider,
   });
+
+  const onActiveEditorChange = vscode.window.onDidChangeActiveTextEditor(
+    async (editor) => {
+      if (!editor) {
+        console.log('[Focus Files] No active editor');
+        return;
+      }
+
+      const filePath = editor.document.uri.fsPath;
+      console.log('[Focus Files] Active:', filePath);
+
+      const node = focusedFiles
+        .map((file) => fileNodes.get(file.filePath))
+        .find((node) => node?.data.filePath === filePath);
+
+      if (node) {
+        try {
+          await treeView.reveal(node, {
+            select: true,
+            focus: false,
+          });
+        } catch (err) {
+          console.error('[Focus Files] Reveal failed:', err);
+        }
+      } else {
+        selectionResetCounter++;
+        provider.refresh();
+      }
+    },
+  );
 
   type MarkFileInput = {
     filePath: string;
@@ -468,4 +508,5 @@ export const activate = async (context: vscode.ExtensionContext) => {
   context.subscriptions.push(removePosition);
   context.subscriptions.push(clearFiles);
   context.subscriptions.push(onConfigChange);
+  context.subscriptions.push(onActiveEditorChange);
 };
